@@ -1,314 +1,136 @@
-import * as Utils from "./utils.js";
+import * as Utils from './utils.js';
+import * as Movimento from './movimentos.js';
+
 const grid = document.querySelector('.grid');
-const jogadorWhite = document.querySelector('.jogador-white')
-const jogadorBlack = document.querySelector('.jogador-black')
+const jogadorWhite = document.querySelector('.jogador-white');
+const jogadorBlack = document.querySelector('.jogador-black');
 
-
-let casasDestacadas = [];
+// Estado do jogo
+let isWhite = true;
 let peçaSelecionada = null;
+let casasDestacadas = [];
 let listenersAtuais = [];
-let começouJogo = false
-let isWhite = true
-let corAtual = 'cavalo-white'
-const direçaoBispo = [[-1,-1],[-1,1],[1,1],[1,-1]]
-const capturaPeao = [[1,-1],[1,1]]
-let contadorWhite = 0
-let contadorBlack = 0
+let contadorWhite = 0;
+let contadorBlack = 0;
+let iniciouTimer = false;
+let intervalId;
 
-// Define o comportamento ao clicar numa peça
-let moverPeça = (event, arrayElementos) => {
+// Direções
+const direçaoBispo = [[-1, -1], [-1, 1], [1, 1], [1, -1]];
+const direçaoCavalo = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+const direçaoRei = [[-1, 0], [-1, -1], [-1, 1], [0, -1], [0, 1], [1, 0], [1, -1], [1, 1]];
+
+// Função principal ao clicar em uma peça
+function moverPeça(event, arrayElementos) {
     let elemento = event.target;
     let elementoPAI = elemento.parentNode;
-    corAtual = elemento.className.includes('white')?'white':'black'
-    if (!elementoPAI.dataset.id) return;
-    if(isWhite && elemento.className.includes('black')) return
-    else if(!isWhite && elemento.className.includes('white')) return
-    let [linhaStr, colunaStr] = elementoPAI.dataset.id.split(',');
-    let linha = parseInt(linhaStr);
-    let coluna = parseInt(colunaStr);
 
-    // Apenas para peões brancos por enquanto
-    if (elemento.className.includes('peao-white')) {
-        removerEventos();
-        casasDestacadas = [];
-        capturarPeao(corAtual,linha,coluna,casasDestacadas,arrayElementos)
-        if (linha - 1 >= 0) {
-            let casa1 = arrayElementos[linha - 1][coluna];
-            if(casa1.children.length === 0){
-                casasDestacadas.push(casa1);
-            }
-            
-        }
+    if (!elementoPAI.dataset.id || elemento.tagName !== 'IMG') return;
 
-        // Movimento de 2 casas se estiver na posição inicial
-        if (linha === 6 && linha - 2 >= 0) {
-            let casa2 = arrayElementos[linha - 2][coluna];
-            if(arrayElementos[linha -1][coluna].children.length === 0){
-                 if(casa2.children.length == 0){
-                 casasDestacadas.push(casa2);
-            }
-            }
-           
-        }
+    const corAtual = elemento.className.includes('white') ? 'white' : 'black';
+    if ((isWhite && corAtual === 'black') || (!isWhite && corAtual === 'white')) return;
 
-        peçaSelecionada = elemento;
-        lancesPossiveis(casasDestacadas);
+    const [linha, coluna] = elementoPAI.dataset.id.split(',').map(Number);
+
+    // Reset
+    listenersAtuais = Utils.removerEventos(listenersAtuais);
+    casasDestacadas = [];
+    peçaSelecionada = elemento;
+
+    // Detecta tipo da peça
+    if (elemento.className.includes('peao')) {
+        Utils.capturarPeao(corAtual, linha, coluna, casasDestacadas, arrayElementos);
+        casasDestacadas = corAtual === 'white'
+            ? Movimento.movimentoPeaoWhite(arrayElementos, linha, coluna, casasDestacadas)
+            : Movimento.movimentoPeaoBlack(arrayElementos, linha, coluna, casasDestacadas);
+    }
+    else if (elemento.className.includes('torre')) {
+        casasDestacadas = Movimento.movimentoTorre(arrayElementos, linha, coluna, casasDestacadas, corAtual);
+    }
+    else if (elemento.className.includes('bispo')) {
+        casasDestacadas = Movimento.movimentoBispo(arrayElementos, linha, coluna, casasDestacadas, direçaoBispo, corAtual);
+    }
+    else if (elemento.className.includes('cavalo')) {
+        casasDestacadas = Movimento.movimentoCavalo(arrayElementos, linha, coluna, casasDestacadas, direçaoCavalo, corAtual);
+    }
+    else if (elemento.className.includes('rainha')) {
+        let array1 = Movimento.movimentoTorre(arrayElementos, linha, coluna, [], corAtual);
+        let array2 = Movimento.movimentoBispo(arrayElementos, linha, coluna, [], direçaoBispo, corAtual);
+        casasDestacadas = [...array1, ...array2];
+    }
+    else if (elemento.className.includes('rei')) {
+        casasDestacadas = Movimento.movimentoRei(arrayElementos, linha, coluna, casasDestacadas, direçaoRei, corAtual);
     }
 
-    else if (elemento.className.includes('peao-black')) {
-        removerEventos();
-        casasDestacadas = [];
-        capturarPeao(corAtual,linha,coluna,casasDestacadas,arrayElementos)
-        if (linha + 1 < 8) {
-            let casa1 = arrayElementos[linha +1][coluna];
-            if(casa1.children.length === 0){
-                 casasDestacadas.push(casa1);
-            }
-           
-        }
+    // Exibe jogadas possíveis
+    listenersAtuais = Utils.lancesPossiveis(
+        casasDestacadas,
+        peçaSelecionada,
+        casasDestacadas,
+        listenersAtuais,
+        executarMovimento
+    );
 
-        // Movimento de 2 casas se estiver na posição inicial
-        if (linha === 1 && linha + 2 < 8) {
-            let casa2 = arrayElementos[linha +2][coluna];
-            if(arrayElementos[linha+1][coluna].children.length === 0){
-                 if(casa2.children.length === 0){
-                     casasDestacadas.push(casa2);
-            }
-            }
-           
-        }
+    // Debug: posição do rei
+    const posicao = Utils.posiçaoRei(arrayElementos, corAtual);
+    console.log('Rei', corAtual, 'em', posicao);
+}
 
-        peçaSelecionada = elemento;
-        lancesPossiveis(casasDestacadas);
+// Executa o movimento da peça e atualiza o estado
+function executarMovimento(event, peça, casas) {
+    if (event.target.tagName === 'IMG') {
+        event.target.remove();
     }
 
-    else if (elemento.className.includes('torre-white') || elemento.className.includes('torre-black')) {
-        removerEventos();
-        casasDestacadas = [];
-        //para cima
-        for(let i = linha -1;i >=0;i--){
-            let casa = arrayElementos[i][coluna]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
-        }
+    peça.parentNode.removeChild(peça);
+    event.currentTarget.appendChild(peça);
 
-        //para baixo
-        for(let i = linha + 1;i <8;i++){
-            let casa = arrayElementos[i][coluna]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
-        }
-        //para esquerda
-        for(let j = coluna - 1;j>=0;j--){
-            let casa = arrayElementos[linha][j]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
-        }
-    
-        //para direita
-        for(let j = coluna +1;j<8;j++){
-            let casa = arrayElementos[linha][j]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
-        }
-        peçaSelecionada = elemento;
-        lancesPossiveis(casasDestacadas);
+    listenersAtuais = Utils.removerEventos(listenersAtuais);
+    casasDestacadas = [];
+
+    if (!iniciouTimer) {
+        iniciarRelogio();
+        iniciouTimer = true;
     }
 
-    else if (elemento.className.includes('bispo-white') || elemento.className.includes('bispo-black')) {
-        removerEventos();
-        casasDestacadas = [];
-        for(let [dx,dy] of direçaoBispo){
-            let h = linha + dx
-            let i = coluna + dy
+    isWhite = !isWhite;
+}
 
-            while(h >= 0 && h <8 && i >= 0 && i < 8){
-                let casa = arrayElementos[h][i]
-                if(casa.children.length === 0){
-                    casasDestacadas.push(casa)
-                }else if(ehAdversario(casa)){
-                    casasDestacadas.push(casa)
-                    break
-                }
-                else{
-                    break
-                }
-                h += dx
-                i += dy
-            }
-        }
-        peçaSelecionada = elemento;
-        lancesPossiveis(casasDestacadas);
-    }
-
-     else if (elemento.className.includes('cavalo-white') || elemento.className.includes('cavalo-black')) {
-        removerEventos();
-        casasDestacadas = [];
-        let movimentos = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]
-        for(let [dx,dy] of movimentos){
-            novaLinha = linha + dx
-            novaColuna = coluna + dy
-            if(novaLinha >= 0 && novaLinha <8 && novaColuna >= 0 && novaColuna<8){
-                let casa = arrayElementos[novaLinha][novaColuna]
-                if(casa.children.length === 0){
-                    casasDestacadas.push(casa)
-                }else if(ehAdversario(casa)){
-                    casasDestacadas.push(casa)
-                }
-            }
-        }
-        
-        peçaSelecionada = elemento;
-        lancesPossiveis(casasDestacadas);
-    }
-
-    else if (elemento.className.includes('rainha-white') || elemento.className.includes('rainha-black')) {
-        removerEventos();
-        casasDestacadas = [];
-        //para cima
-        for(let i = linha -1;i >=0;i--){
-            let casa = arrayElementos[i][coluna]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
+// Inicia contagem regressiva de tempo
+function iniciarRelogio() {
+    intervalId = setInterval(() => {
+        if (isWhite) {
+            contadorWhite++;
+            jogadorWhite.innerText = Utils.toMMSS(300 - contadorWhite);
+        } else {
+            contadorBlack++;
+            jogadorBlack.innerText = Utils.toMMSS(300 - contadorBlack);
         }
 
-        //para baixo
-        for(let i = linha + 1;i <8;i++){
-            let casa = arrayElementos[i][coluna]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
+        if (contadorWhite >= 300) {
+            alert('Jogador Black venceu!');
+            clearInterval(intervalId);
+        } else if (contadorBlack >= 300) {
+            alert('Jogador White venceu!');
+            clearInterval(intervalId);
         }
-        //para esquerda
-        for(let j = coluna - 1;j>=0;j--){
-            let casa = arrayElementos[linha][j]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
-        }
-    
-        //para direita
-        for(let j = coluna +1;j<8;j++){
-            let casa = arrayElementos[linha][j]
-            if(casa.children.length === 0){
-                casasDestacadas.push(casa)
-            }else if(ehAdversario(casa)){
-                casasDestacadas.push(casa)
-                break
-            }
-            else{
-                break
-            }
-        }
-         for(let [dx,dy] of direçaoBispo){
-            let h = linha + dx
-            let i = coluna + dy
+    }, 1000);
+}
 
-            while(h >= 0 && h <8 && i >= 0 && i < 8){
-                let casa = arrayElementos[h][i]
-                if(casa.children.length === 0){
-                    casasDestacadas.push(casa)
-                }else if(ehAdversario(casa)){
-                    casasDestacadas.push(casa)
-                    break
-                }
-                else{
-                    break
-                }
-                h += dx
-                i += dy
-            }
-        }
-       
-        peçaSelecionada = elemento;
-        lancesPossiveis(casasDestacadas);
-    }
+// Início do jogo
+Utils.criarTabuleiro(grid);
 
-    else if(elemento.className.includes('rei-white') || elemento.className.includes('rei-black')){
-        removerEventos()
-        casasDestacadas = []
-        let movimentos = [[-1,0],[-1,-1],[-1,1],[0,-1],[0,1],[1,0],[1,-1],[1,1]]
-        for(let [dx,dy] of movimentos){
-            let novaLinha = linha + dx
-            let novaColuna = coluna + dy
-            if(novaLinha>=0 && novaLinha <8 && novaColuna >=0 && novaColuna <8){
-                let casa = arrayElementos[novaLinha][novaColuna]
-                if(casa.children.length === 0){
-                    casasDestacadas.push(casa)
-                }else if(ehAdversario(casa)){
-                    casasDestacadas.push(casa)
-                }
-            }
-        }
-        peçaSelecionada = elemento
-        lancesPossiveis(casasDestacadas)
-     }
-     let posicao = posiçaoRei(arrayElementos,corAtual)
-     console.log(posicao)
-    }
+let elementos = Utils.adicionarPeça(grid, 'peao-white', [6], [0, 1, 2, 3, 4, 5, 6, 7]);
+Utils.adicionarPeça(grid, 'peao-black', [1], [0, 1, 2, 3, 4, 5, 6, 7]);
+Utils.adicionarPeça(grid, 'torre-white', [7], [0, 7]);
+Utils.adicionarPeça(grid, 'torre-black', [0], [0, 7]);
+Utils.adicionarPeça(grid, 'bispo-white', [7], [2, 5]);
+Utils.adicionarPeça(grid, 'bispo-black', [0], [2, 5]);
+Utils.adicionarPeça(grid, 'cavalo-white', [7], [1, 6]);
+Utils.adicionarPeça(grid, 'cavalo-black', [0], [1, 6]);
+Utils.adicionarPeça(grid, 'rainha-white', [7], [4]);
+Utils.adicionarPeça(grid, 'rainha-black', [0], [4]);
+Utils.adicionarPeça(grid, 'rei-white', [7], [3]);
+Utils.adicionarPeça(grid, 'rei-black', [0], [3]);
 
-
-
-// Execução principal
-criarTabuleiro(grid);
-let elementos = adicionarPeça(grid, 'peao-white', [6], [0, 1, 2, 3, 4, 5, 6, 7]);
-adicionarPeça(grid,'peao-black',[1],[0,1,2,3,4,5,6,7])
-adicionarPeça(grid,'torre-white',[7],[0,7])
-adicionarPeça(grid,'torre-black',[0],[0,7])
-adicionarPeça(grid,'bispo-white',[7],[2,5])
-adicionarPeça(grid,'bispo-black',[0],[2,5])
-adicionarPeça(grid,'cavalo-white',[7],[1,6])
-adicionarPeça(grid,'cavalo-black',[0],[1,6])
-adicionarPeça(grid,'rainha-white',[7],[4])
-adicionarPeça(grid,'rainha-black',[0],[4])
-adicionarPeça(grid,'rei-white',[7],[3])
-adicionarPeça(grid,'rei-black',[0],[3])
 grid.addEventListener('click', (event) => moverPeça(event, elementos));
-
