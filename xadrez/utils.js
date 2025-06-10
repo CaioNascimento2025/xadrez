@@ -55,24 +55,6 @@ export function adicionarPeça(elementoPAI, peça, linha, coluna) {
     return elementos;
 }
 
-export function capturarPeao(corVez, linha, coluna, casasDestacadas, array) {
-    let direções = corVez === 'white' ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]];
-    for (let [dx, dy] of direções) {
-        let novaLinha = linha + dx;
-        let novaColuna = coluna + dy;
-        if (novaLinha >= 0 && novaLinha < 8 && novaColuna >= 0 && novaColuna < 8) {
-            let casa = array[novaLinha][novaColuna];
-            if (casa.children.length > 0) {
-                let peça = casa.firstElementChild;
-                let corPeça = peça.className.includes('white') ? 'white' : 'black';
-                if (corPeça !== corVez) {
-                    casasDestacadas.push(casa);
-                }
-            }
-        }
-    }
-}
-
 export function posiçaoRei(array,cor){
     let corRei = cor
     for(let i =0;i<8;i++){
@@ -80,7 +62,7 @@ export function posiçaoRei(array,cor){
             let casa = array[i][j]
             if(casa.children.length ===1){
                 let peça = casa.firstElementChild
-                if(peça.className.includes('rei')){
+                if(peça.className.includes('rei') && peça.className.includes(cor)){
                     return [i,j]
                 }
             }

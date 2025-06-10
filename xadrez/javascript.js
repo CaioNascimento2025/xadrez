@@ -5,7 +5,6 @@ const grid = document.querySelector('.grid');
 const jogadorWhite = document.querySelector('.jogador-white');
 const jogadorBlack = document.querySelector('.jogador-black');
 
-// Estado do jogo
 let isWhite = true;
 let peçaSelecionada = null;
 let casasDestacadas = [];
@@ -15,12 +14,10 @@ let contadorBlack = 0;
 let iniciouTimer = false;
 let intervalId;
 
-// Direções
 const direçaoBispo = [[-1, -1], [-1, 1], [1, 1], [1, -1]];
 const direçaoCavalo = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
 const direçaoRei = [[-1, 0], [-1, -1], [-1, 1], [0, -1], [0, 1], [1, 0], [1, -1], [1, 1]];
 
-// Função principal ao clicar em uma peça
 function moverPeça(event, arrayElementos) {
     let elemento = event.target;
     let elementoPAI = elemento.parentNode;
@@ -32,14 +29,16 @@ function moverPeça(event, arrayElementos) {
 
     const [linha, coluna] = elementoPAI.dataset.id.split(',').map(Number);
 
-    // Reset
     listenersAtuais = Utils.removerEventos(listenersAtuais);
     casasDestacadas = [];
     peçaSelecionada = elemento;
 
+    let ameaçadas = Movimento.casasAmeaçadas(arrayElementos, corAtual);
+    let idsAmeaçadas = new Set(ameaçadas.map(casa => casa.dataset.id));
+    let movimentosRei = Movimento.movimentoRei(arrayElementos,linha,coluna,[],direçaoRei,corAtual)
     // Detecta tipo da peça
     if (elemento.className.includes('peao')) {
-        Utils.capturarPeao(corAtual, linha, coluna, casasDestacadas, arrayElementos);
+        Movimento.capturarPeao(corAtual, linha, coluna, casasDestacadas, arrayElementos);
         casasDestacadas = corAtual === 'white'
             ? Movimento.movimentoPeaoWhite(arrayElementos, linha, coluna, casasDestacadas)
             : Movimento.movimentoPeaoBlack(arrayElementos, linha, coluna, casasDestacadas);
@@ -59,10 +58,10 @@ function moverPeça(event, arrayElementos) {
         casasDestacadas = [...array1, ...array2];
     }
     else if (elemento.className.includes('rei')) {
-        casasDestacadas = Movimento.movimentoRei(arrayElementos, linha, coluna, casasDestacadas, direçaoRei, corAtual);
+        let movimentosRei = Movimento.movimentoRei(arrayElementos, linha, coluna, [], direçaoRei, corAtual);
+        casasDestacadas = movimentosRei.filter(casa => !idsAmeaçadas.has(casa.dataset.id));
     }
 
-    // Exibe jogadas possíveis
     listenersAtuais = Utils.lancesPossiveis(
         casasDestacadas,
         peçaSelecionada,
@@ -71,12 +70,9 @@ function moverPeça(event, arrayElementos) {
         executarMovimento
     );
 
-    // Debug: posição do rei
-    const posicao = Utils.posiçaoRei(arrayElementos, corAtual);
-    console.log('Rei', corAtual, 'em', posicao);
+    Utils.posiçaoRei(arrayElementos, corAtual); // Opcional: debug ou lógica futura
 }
 
-// Executa o movimento da peça e atualiza o estado
 function executarMovimento(event, peça, casas) {
     if (event.target.tagName === 'IMG') {
         event.target.remove();
@@ -96,7 +92,6 @@ function executarMovimento(event, peça, casas) {
     isWhite = !isWhite;
 }
 
-// Inicia contagem regressiva de tempo
 function iniciarRelogio() {
     intervalId = setInterval(() => {
         if (isWhite) {
@@ -117,7 +112,7 @@ function iniciarRelogio() {
     }, 1000);
 }
 
-// Início do jogo
+// Inicialização do tabuleiro e peças
 Utils.criarTabuleiro(grid);
 
 let elementos = Utils.adicionarPeça(grid, 'peao-white', [6], [0, 1, 2, 3, 4, 5, 6, 7]);
