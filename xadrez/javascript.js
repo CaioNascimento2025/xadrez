@@ -4,7 +4,7 @@ import * as Movimento from './movimentos.js';
 const grid = document.querySelector('.grid');
 const jogadorWhite = document.querySelector('.jogador-white');
 const jogadorBlack = document.querySelector('.jogador-black');
-
+let xequeMate = false;
 let isWhite = true;
 let peçaSelecionada = null;
 let casasDestacadas = [];
@@ -22,8 +22,8 @@ function moverPeça(event, arrayElementos) {
     let elemento = event.target;
     let elementoPAI = elemento.parentNode;
 
-    if (!elementoPAI.dataset.id || elemento.tagName !== 'IMG') return;
-
+    if (!elementoPAI || !elementoPAI.dataset.id || elemento.tagName !== 'IMG') return;
+    if (xequeMate) return
     const corAtual = elemento.className.includes('white') ? 'white' : 'black';
     if ((isWhite && corAtual === 'black') || (!isWhite && corAtual === 'white')) return;
 
@@ -35,29 +35,24 @@ function moverPeça(event, arrayElementos) {
 
     let ameaçadas = Movimento.casasAmeaçadas(arrayElementos, corAtual);
     let idsAmeaçadas = new Set(ameaçadas.map(casa => casa.dataset.id));
-    let movimentosRei = Movimento.movimentoRei(arrayElementos,linha,coluna,[],direçaoRei,corAtual)
+
     // Detecta tipo da peça
     if (elemento.className.includes('peao')) {
         Movimento.capturarPeao(corAtual, linha, coluna, casasDestacadas, arrayElementos);
         casasDestacadas = corAtual === 'white'
             ? Movimento.movimentoPeaoWhite(arrayElementos, linha, coluna, casasDestacadas)
             : Movimento.movimentoPeaoBlack(arrayElementos, linha, coluna, casasDestacadas);
-    }
-    else if (elemento.className.includes('torre')) {
+    } else if (elemento.className.includes('torre')) {
         casasDestacadas = Movimento.movimentoTorre(arrayElementos, linha, coluna, casasDestacadas, corAtual);
-    }
-    else if (elemento.className.includes('bispo')) {
+    } else if (elemento.className.includes('bispo')) {
         casasDestacadas = Movimento.movimentoBispo(arrayElementos, linha, coluna, casasDestacadas, direçaoBispo, corAtual);
-    }
-    else if (elemento.className.includes('cavalo')) {
+    } else if (elemento.className.includes('cavalo')) {
         casasDestacadas = Movimento.movimentoCavalo(arrayElementos, linha, coluna, casasDestacadas, direçaoCavalo, corAtual);
-    }
-    else if (elemento.className.includes('rainha')) {
+    } else if (elemento.className.includes('rainha')) {
         let array1 = Movimento.movimentoTorre(arrayElementos, linha, coluna, [], corAtual);
         let array2 = Movimento.movimentoBispo(arrayElementos, linha, coluna, [], direçaoBispo, corAtual);
         casasDestacadas = [...array1, ...array2];
-    }
-    else if (elemento.className.includes('rei')) {
+    } else if (elemento.className.includes('rei')) {
         let movimentosRei = Movimento.movimentoRei(arrayElementos, linha, coluna, [], direçaoRei, corAtual);
         casasDestacadas = movimentosRei.filter(casa => !idsAmeaçadas.has(casa.dataset.id));
     }
@@ -69,8 +64,6 @@ function moverPeça(event, arrayElementos) {
         listenersAtuais,
         executarMovimento
     );
-
-    Utils.posiçaoRei(arrayElementos, corAtual); // Opcional: debug ou lógica futura
 }
 
 function executarMovimento(event, peça, casas) {
@@ -90,6 +83,87 @@ function executarMovimento(event, peça, casas) {
     }
 
     isWhite = !isWhite;
+    let corAtual = isWhite ? 'white' : 'black';
+
+    if (verificarXequeMate(elementos, corAtual)) {
+        alert(`Xeque-mate! Jogador ${isWhite ? 'Black' : 'White'} venceu!`);
+        xequeMate = true;
+        grid.removeEventListener('click', moverPeça);
+        clearInterval(intervalId);
+    } 
+}
+
+function verificarXequeMate(arrayElementos, corAtual) {
+    const corAdversaria = corAtual === 'white' ? 'black' : 'white';
+    const posRei = Utils.posiçaoRei(arrayElementos, corAtual);
+
+    if (!posRei) return false;
+
+    const [reiLinha, reiColuna] = posRei;
+    const casasAmeaçadas = Movimento.casasAmeaçadas(arrayElementos, corAdversaria);
+    const idsAmeaçadas = new Set(casasAmeaçadas.map(casa => casa.dataset.id));
+
+    const reiCasa = arrayElementos[reiLinha][reiColuna];
+    if (!idsAmeaçadas.has(reiCasa.dataset.id)) {
+        return false;
+    }
+
+
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            const casa = arrayElementos[i][j];
+            if (casa.children.length === 0) continue;
+
+            const peça = casa.firstElementChild;
+            if (!peça.className.includes(corAtual)) continue;
+
+            let movimentos = [];
+            if (peça.className.includes('peao')) {
+                Movimento.capturarPeao(corAtual, i, j, movimentos, arrayElementos);
+                movimentos = corAtual === 'white'
+                    ? Movimento.movimentoPeaoWhite(arrayElementos, i, j, movimentos)
+                    : Movimento.movimentoPeaoBlack(arrayElementos, i, j, movimentos);
+            } else if (peça.className.includes('torre')) {
+                movimentos = Movimento.movimentoTorre(arrayElementos, i, j, [], corAtual);
+            } else if (peça.className.includes('bispo')) {
+                movimentos = Movimento.movimentoBispo(arrayElementos, i, j, [], direçaoBispo, corAtual);
+            } else if (peça.className.includes('cavalo')) {
+                movimentos = Movimento.movimentoCavalo(arrayElementos, i, j, [], direçaoCavalo, corAtual);
+            } else if (peça.className.includes('rainha')) {
+                const torre = Movimento.movimentoTorre(arrayElementos, i, j, [], corAtual);
+                const bispo = Movimento.movimentoBispo(arrayElementos, i, j, [], direçaoBispo, corAtual);
+                movimentos = [...torre, ...bispo];
+            } else if (peça.className.includes('rei')) {
+                let movimentosRei = Movimento.movimentoRei(arrayElementos, i, j, [], direçaoRei, corAtual);
+                movimentos = movimentosRei.filter(casa => !idsAmeaçadas.has(casa.dataset.id));
+            }
+
+            for (let destino of movimentos) {
+                const backupOrigem = casa.innerHTML;
+                const backupDestino = destino.innerHTML;
+
+                destino.innerHTML = '';
+                destino.appendChild(peça);
+                casa.innerHTML = '';
+
+                const novaPosRei = Utils.posiçaoRei(arrayElementos, corAtual);
+                const novasAmeacas = Movimento.casasAmeaçadas(arrayElementos, corAdversaria);
+                const novasIds = new Set(novasAmeacas.map(c => c.dataset.id));
+                const reiAposMov = arrayElementos[novaPosRei[0]][novaPosRei[1]];
+                const aindaEmXeque = novasIds.has(reiAposMov.dataset.id);
+
+                casa.innerHTML = backupOrigem;
+                destino.innerHTML = backupDestino;
+
+                if (!aindaEmXeque) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    console.log('✔️ XEQUE-MATE confirmado para', corAtual);
+    return true;
 }
 
 function iniciarRelogio() {
@@ -112,7 +186,7 @@ function iniciarRelogio() {
     }, 1000);
 }
 
-// Inicialização do tabuleiro e peças
+// Inicialização
 Utils.criarTabuleiro(grid);
 
 let elementos = Utils.adicionarPeça(grid, 'peao-white', [6], [0, 1, 2, 3, 4, 5, 6, 7]);

@@ -1,195 +1,186 @@
-export function ehAdversario(casa, corAtual) {
-    if (casa.children.length === 0) return false;
-    const peça = casa.firstElementChild;
-    const corPeça = peça.className.includes('white') ? 'white' : 'black';
-    return corPeça !== corAtual;
+// movimentos.js
+
+const direcaoBispo = [[-1, -1], [-1, 1], [1, 1], [1, -1]];
+const direcaoCavalo = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+const direcaoRei = [[-1, 0], [-1, -1], [-1, 1], [0, -1], [0, 1], [1, 0], [1, -1], [1, 1]];
+
+function dentroDoTabuleiro(linha, coluna) {
+    return linha >= 0 && linha < 8 && coluna >= 0 && coluna < 8;
 }
 
-export function movimentoPeaoWhite(array, linha, coluna, casasDestacadas) {
-    if (linha - 1 >= 0) {
-        let casa1 = array[linha - 1][coluna];
-        if (casa1.children.length === 0) {
-            casasDestacadas.push(casa1);
-            if (linha === 6) {
-                let casa2 = array[linha - 2][coluna];
-                if (casa2.children.length === 0) {
-                    casasDestacadas.push(casa2);
-                }
-            }
+// Movimento peão branco, só move pra frente se casa livre, e diagonal pra capturar
+export function movimentoPeaoWhite(arrayElementos, linha, coluna, casas = []) {
+    // Movimento para frente
+    if (dentroDoTabuleiro(linha - 1, coluna) && arrayElementos[linha - 1][coluna].children.length === 0) {
+        casas.push(arrayElementos[linha - 1][coluna]);
+        // Primeiro movimento pode avançar 2 casas
+        if (linha === 6 && arrayElementos[linha - 2][coluna].children.length === 0) {
+            casas.push(arrayElementos[linha - 2][coluna]);
         }
     }
-    return casasDestacadas;
+    return casas;
 }
 
-export function movimentoPeaoBlack(array, linha, coluna, casasDestacadas) {
-    if (linha + 1 < 8) {
-        let casa1 = array[linha + 1][coluna];
-        if (casa1.children.length === 0) {
-            casasDestacadas.push(casa1);
-            if (linha === 1) {
-                let casa2 = array[linha + 2][coluna];
-                if (casa2.children.length === 0) {
-                    casasDestacadas.push(casa2);
-                }
-            }
+// Movimento peão preto
+export function movimentoPeaoBlack(arrayElementos, linha, coluna, casas = []) {
+    // Movimento para frente
+    if (dentroDoTabuleiro(linha + 1, coluna) && arrayElementos[linha + 1][coluna].children.length === 0) {
+        casas.push(arrayElementos[linha + 1][coluna]);
+        // Primeiro movimento pode avançar 2 casas
+        if (linha === 1 && arrayElementos[linha + 2][coluna].children.length === 0) {
+            casas.push(arrayElementos[linha + 2][coluna]);
         }
     }
-    return casasDestacadas;
+    return casas;
 }
 
-export function movimentoTorre(array, linha, coluna, casasDestacadas, corAtual) {
-    // cima
-    for (let i = linha - 1; i >= 0; i--) {
-        let casa = array[i][coluna];
-        if (casa.children.length === 0) {
-            casasDestacadas.push(casa);
-        } else if (ehAdversario(casa, corAtual)) {
-            casasDestacadas.push(casa);
-            break;
-        } else break;
-    }
-    // baixo
-    for (let i = linha + 1; i < 8; i++) {
-        let casa = array[i][coluna];
-        if (casa.children.length === 0) {
-            casasDestacadas.push(casa);
-        } else if (ehAdversario(casa, corAtual)) {
-            casasDestacadas.push(casa);
-            break;
-        } else break;
-    }
-    // esquerda
-    for (let j = coluna - 1; j >= 0; j--) {
-        let casa = array[linha][j];
-        if (casa.children.length === 0) {
-            casasDestacadas.push(casa);
-        } else if (ehAdversario(casa, corAtual)) {
-            casasDestacadas.push(casa);
-            break;
-        } else break;
-    }
-    // direita
-    for (let j = coluna + 1; j < 8; j++) {
-        let casa = array[linha][j];
-        if (casa.children.length === 0) {
-            casasDestacadas.push(casa);
-        } else if (ehAdversario(casa, corAtual)) {
-            casasDestacadas.push(casa);
-            break;
-        } else break;
-    }
-    return casasDestacadas;
-}
+// Capturar peão (diagonais com peça adversária)
+export function capturarPeao(corAtual, linha, coluna, casas, arrayElementos) {
+    let direcao = corAtual === 'white' ? -1 : 1;
+    let corOposta = corAtual === 'white' ? 'black' : 'white';
 
-export function movimentoBispo(array, linha, coluna, casasDestacadas, direcao, corAtual) {
-    for (let [dx, dy] of direcao) {
-        let h = linha + dx;
-        let i = coluna + dy;
-        while (h >= 0 && h < 8 && i >= 0 && i < 8) {
-            let casa = array[h][i];
-            if (casa.children.length === 0) {
-                casasDestacadas.push(casa);
-            } else if (ehAdversario(casa, corAtual)) {
-                casasDestacadas.push(casa);
-                break;
-            } else break;
-            h += dx;
-            i += dy;
-        }
-    }
-    return casasDestacadas;
-}
+    for (let dc of [-1, 1]) {
+        let novaLinha = linha + direcao;
+        let novaColuna = coluna + dc;
 
-export function movimentoCavalo(array, linha, coluna, casasDestacadas, direcao, corAtual) {
-    for (let [dx, dy] of direcao) {
-        let novaLinha = linha + dx;
-        let novaColuna = coluna + dy;
-        if (novaLinha >= 0 && novaLinha < 8 && novaColuna >= 0 && novaColuna < 8) {
-            let casa = array[novaLinha][novaColuna];
-            if (casa.children.length === 0 || ehAdversario(casa, corAtual)) {
-                casasDestacadas.push(casa);
-            }
-        }
-    }
-    return casasDestacadas;
-}
-
-export function movimentoRei(array, linha, coluna, casasDestacadas, direcao, corAtual) {
-    for (let [dx, dy] of direcao) {
-        let novaLinha = linha + dx;
-        let novaColuna = coluna + dy;
-        if (novaLinha >= 0 && novaLinha < 8 && novaColuna >= 0 && novaColuna < 8) {
-            let casa = array[novaLinha][novaColuna];
-            if (casa.children.length === 0 || ehAdversario(casa, corAtual)) {
-                casasDestacadas.push(casa);
-            }
-        }
-    }
-    return casasDestacadas;
-}
-
-export function capturarPeao(corVez, linha, coluna, casasDestacadas, array) {
-    let casasVermelhas = [];
-    let direções = corVez === 'white' ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]];
-
-    for (let [dx, dy] of direções) {
-        let novaLinha = linha + dx;
-        let novaColuna = coluna + dy;
-        if (novaLinha >= 0 && novaLinha < 8 && novaColuna >= 0 && novaColuna < 8) {
-            let casa = array[novaLinha][novaColuna];
-            // Sempre adiciona a casa (ameaça) se tiver peça ou não
-            casasVermelhas.push(casa);
+        if (dentroDoTabuleiro(novaLinha, novaColuna)) {
+            let casa = arrayElementos[novaLinha][novaColuna];
             if (casa.children.length > 0) {
-                let peça = casa.firstElementChild;
-                let corPeça = peça.className.includes('white') ? 'white' : 'black';
-                if (corPeça !== corVez) {
-                    casasDestacadas.push(casa);
+                let peca = casa.firstElementChild;
+                if (peca.className.includes(corOposta)) {
+                    casas.push(casa);
                 }
             }
         }
     }
-    return casasVermelhas;
 }
 
-export function casasAmeaçadas(array, cor) {
-    let corAdversaria = cor === 'white' ? 'black' : 'white';
-    let casasVermelhas = [];
-    let direcoesBispo = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-    let direcoesTorre = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-    let direcoesCavalo = [
-        [-2, -1], [-2, 1], [-1, -2], [-1, 2],
-        [1, -2], [1, 2], [2, -1], [2, 1]
-    ];
-    let direcoesRei = [...direcoesBispo, ...direcoesTorre];
+// Movimento torre
+export function movimentoTorre(arrayElementos, linha, coluna, casas = [], corAtual) {
+    const direcoes = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (let [dl, dc] of direcoes) {
+        let l = linha + dl;
+        let c = coluna + dc;
+        while (dentroDoTabuleiro(l,c)) {
+            let casa = arrayElementos[l][c];
+            if (casa.children.length === 0) {
+                casas.push(casa);
+            } else {
+                let peca = casa.firstElementChild;
+                if (!peca.className.includes(corAtual)) {
+                    casas.push(casa);
+                }
+                break;
+            }
+            l += dl;
+            c += dc;
+        }
+    }
+    return casas;
+}
 
-    for (let i = 0; i < 8; i++) {
-        for (let j = 0; j < 8; j++) {
-            let casa = array[i][j];
-            if (casa.children.length === 1) {
-                let peça = casa.firstElementChild;
-                if (peça.className.includes(corAdversaria)) {
-                    if (peça.className.includes('peao')) {
-                        casasVermelhas.push(...capturarPeao(corAdversaria, i, j, [], array));
-                    } else if (peça.className.includes('torre')) {
-                        movimentoTorre(array, i, j, casasVermelhas, corAdversaria);
-                    } else if (peça.className.includes('bispo')) {
-                        movimentoBispo(array, i, j, casasVermelhas, direcoesBispo, corAdversaria);
-                    } else if (peça.className.includes('cavalo')) {
-                        movimentoCavalo(array, i, j, casasVermelhas, direcoesCavalo, corAdversaria);
-                    } else if (peça.className.includes('rainha')) {
-                        movimentoTorre(array, i, j, casasVermelhas, corAdversaria);
-                        movimentoBispo(array, i, j, casasVermelhas, direcoesBispo, corAdversaria);
-                    } else if (peça.className.includes('rei')) {
-                        movimentoRei(array, i, j, casasVermelhas, direcoesRei, corAdversaria);
+// Movimento bispo
+export function movimentoBispo(arrayElementos, linha, coluna, casas = [], direcoes, corAtual) {
+    for (let [dl, dc] of direcoes) {
+        let l = linha + dl;
+        let c = coluna + dc;
+        while (dentroDoTabuleiro(l, c)) {
+            let casa = arrayElementos[l][c];
+            if (casa.children.length === 0) {
+                casas.push(casa);
+            } else {
+                let peca = casa.firstElementChild;
+                if (!peca.className.includes(corAtual)) {
+                    casas.push(casa);
+                }
+                break;
+            }
+            l += dl;
+            c += dc;
+        }
+    }
+    return casas;
+}
+
+// Movimento cavalo
+export function movimentoCavalo(arrayElementos, linha, coluna, casas = [], direcoes, corAtual) {
+    for (let [dl, dc] of direcoes) {
+        let l = linha + dl;
+        let c = coluna + dc;
+        if (dentroDoTabuleiro(l,c)) {
+            let casa = arrayElementos[l][c];
+            if (casa.children.length === 0) {
+                casas.push(casa);
+            } else {
+                let peca = casa.firstElementChild;
+                // Cavalo não pode capturar peça da mesma cor
+                if (!peca.className.includes(corAtual)) {
+                    casas.push(casa);
+                }
+            }
+        }
+    }
+    return casas;
+}
+
+// Movimento rei
+export function movimentoRei(arrayElementos, linha, coluna, casas = [], direcoes, corAtual) {
+    for (let [dl, dc] of direcoes) {
+        let l = linha + dl;
+        let c = coluna + dc;
+        if (dentroDoTabuleiro(l,c)) {
+            let casa = arrayElementos[l][c];
+            if (casa.children.length === 0) {
+                casas.push(casa);
+            } else {
+                let peca = casa.firstElementChild;
+                if (!peca.className.includes(corAtual)) {
+                    casas.push(casa);
+                }
+            }
+        }
+    }
+    return casas;
+}
+
+// Retorna todas as casas que ameaçam o rei adversário (usada para xeque)
+// Aqui considera movimentos possíveis de todas as peças da cor adversária
+export function casasAmeaçadas(arrayElementos, corAdversaria) {
+    let ameaçadas = [];
+
+    for (let i=0; i<8; i++) {
+        for (let j=0; j<8; j++) {
+            let casa = arrayElementos[i][j];
+            if (casa.children.length === 0) continue;
+
+            let peca = casa.firstElementChild;
+            if (!peca.className.includes(corAdversaria)) continue;
+
+            if (peca.className.includes('peao')) {
+                // Casas que o peão ameaça são as diagonais para capturar
+                let direcao = corAdversaria === 'white' ? -1 : 1;
+                for (let dc of [-1, 1]) {
+                    let l = i + direcao;
+                    let c = j + dc;
+                    if (dentroDoTabuleiro(l,c)) {
+                        ameaçadas.push(arrayElementos[l][c]);
                     }
                 }
+            } else if (peca.className.includes('torre')) {
+                movimentoTorre(arrayElementos, i, j, ameaçadas, corAdversaria);
+            } else if (peca.className.includes('bispo')) {
+                movimentoBispo(arrayElementos, i, j, ameaçadas, direcaoBispo, corAdversaria);
+            } else if (peca.className.includes('cavalo')) {
+                movimentoCavalo(arrayElementos, i, j, ameaçadas, direcaoCavalo, corAdversaria);
+            } else if (peca.className.includes('rainha')) {
+                movimentoTorre(arrayElementos, i, j, ameaçadas, corAdversaria);
+                movimentoBispo(arrayElementos, i, j, ameaçadas, direcaoBispo, corAdversaria);
+            } else if (peca.className.includes('rei')) {
+                movimentoRei(arrayElementos, i, j, ameaçadas, direcaoRei, corAdversaria);
             }
         }
     }
 
-    return casasVermelhas;
+    // remover duplicados, pois uma casa pode ser ameaçada por várias peças
+    return [...new Set(ameaçadas)];
 }
-
-
-
-

@@ -1,3 +1,4 @@
+// Remove eventos de clique e destaque das casas
 export function removerEventos(listeners) {
     for (let { casa, listener } of listeners) {
         casa.removeEventListener('click', listener);
@@ -6,6 +7,7 @@ export function removerEventos(listeners) {
     return [];
 }
 
+// Adiciona eventos de clique nas casas possíveis e destaca visualmente
 export function lancesPossiveis(casas, peça, casasDestacadas, listeners, moverFunc) {
     for (let casa of casas) {
         let listener = function (event) {
@@ -18,6 +20,7 @@ export function lancesPossiveis(casas, peça, casasDestacadas, listeners, moverF
     return listeners;
 }
 
+// Cria o tabuleiro 8x8 e adiciona ao elemento pai (div .grid)
 export function criarTabuleiro(elementoPAI) {
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
@@ -29,6 +32,7 @@ export function criarTabuleiro(elementoPAI) {
     }
 }
 
+// Adiciona uma peça específica em determinadas posições do tabuleiro
 export function adicionarPeça(elementoPAI, peça, linha, coluna) {
     let filhos = elementoPAI.querySelectorAll('.casa');
     let elementos = [];
@@ -55,23 +59,25 @@ export function adicionarPeça(elementoPAI, peça, linha, coluna) {
     return elementos;
 }
 
-export function posiçaoRei(array,cor){
-    let corRei = cor
-    for(let i =0;i<8;i++){
-        for(let j = 0;j<8;j++){
-            let casa = array[i][j]
-            if(casa.children.length ===1){
-                let peça = casa.firstElementChild
-                if(peça.className.includes('rei') && peça.className.includes(cor)){
-                    return [i,j]
+// Retorna a posição [linha, coluna] do rei da cor especificada
+export function posiçaoRei(array, cor) {
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            let casa = array[i][j];
+            if (casa.children.length === 1) {
+                let peça = casa.firstElementChild;
+                if (peça.className.includes('rei') && peça.className.includes(cor)) {
+                    return [i, j];
                 }
             }
         }
     }
+    return null;
 }
 
-export function toMMSS(numero){
-    let minutos = Math.floor(numero/60)
-    let segundos = Math.floor(numero-minutos * 60)
-    return `${minutos.toString().padStart(2,'0')}:${segundos.toString().padStart(2,'0')}`
+// Formata um número em mm:ss
+export function toMMSS(numero) {
+    let minutos = Math.floor(numero / 60);
+    let segundos = Math.floor(numero - minutos * 60);
+    return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
 }
